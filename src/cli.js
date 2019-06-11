@@ -94,10 +94,6 @@ async function compare(a, b) {
 
   const aO = await processLineByLine(a)
   const bO = await processLineByLine(b)
-  const aIds = aO.map(o => o._id)
-  const bIds = bO.map(o => o._id)
-  const added = []
-  const removed = []
 
   const objects = {}
   const createIfMissing = type => {
@@ -116,7 +112,7 @@ async function compare(a, b) {
     if (rhs === undefined) {
       // Removed
       createIfMissing(obj._type)
-      objects[obj._type].removed.push(obj._id)
+      objects[obj._type].removed.push(obj)
       noDifference.push(obj._id)
     }
   })
@@ -126,7 +122,7 @@ async function compare(a, b) {
     if (lhs === undefined) {
       // Added
       createIfMissing(obj._type)
-      objects[obj._type].added.push(obj._id)
+      objects[obj._type].added.push(obj)
       noDifference.push(obj._id)
     }
   })
@@ -140,7 +136,7 @@ async function compare(a, b) {
       const bObj = bO.find(o => o._id === obj._id)
       if (!bObj) {
         spinner.fail()
-        throw new Error('whops, should have been here')
+        throw new Error('whops, trying to compare to an object not found')
       }
 
       const aCmp = clone(obj)
@@ -173,8 +169,8 @@ async function compare(a, b) {
           // Changed
           createIfMissing(obj._type)
           objects[obj._type].changed.push({
-            id: obj._id,
-            diff
+            lhs: obj,
+            rhs: bObj
           })
         }
       }

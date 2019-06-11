@@ -4,6 +4,8 @@ import "react-tabs/style/react-tabs.css"
 import data from './data.json'
 import { ReactGhLikeDiff } from 'react-gh-like-diff'
 import 'react-gh-like-diff/lib/diff2html.min.css'
+import ReactDiffViewer from 'react-diff-viewer'
+
 
 const pathToString = (path) => {
   return path.map((e, i) => {
@@ -13,51 +15,44 @@ const pathToString = (path) => {
   }).join('')
 }
 
-const DiffDetailView = (props) => {
-  const { path } = props
-  const { lhr, rhs } = props
+const DiffCollection = (props) => {
+  const linkStyle = {
+    fontFamily: 'monospace', fontSize: 16, margin: 10 
+  }
+  const links = props.diffs.map((obj, i) => {
+      return <a key={obj.id} style={linkStyle} href={`#${obj.id}`}>{i + 1}</a>
+    })
+
+  const diffs = props.diffs.map((obj) => (
+    <Diff key={obj.id} id={obj.id} split={props.split} lhs={obj.lhs} rhs={obj.rhs} />
+  ))
+
   return (
-    <ReactGhLikeDiff
-        options={{
-          originalFileName: pathToString(path),
-          updatedFileName: pathToString(path),
-          outputFormat: 'line-by-line',
-          matching: 'lines'
-        }}
-        past={props.lhs !== undefined ? JSON.stringify(props.lhs, 0, 2) : ""}
-        current={props.rhs !== undefined ? JSON.stringify(props.rhs, 0, 2): ""}
-      />
+    <div>
+      {links}
+      {diffs}
+    </div>
   )
 }
 
-class DiffView extends React.Component {
-  constructor(props) {
-    super(props)
-
-    this.toggleOpen = this.toggleOpen.bind(this)
-
-    this.state = {
-      isOpen: false
-    }
-  }
-
-  toggleOpen() {
-    if (this.state.isOpen) {
-      this.setState({ isOpen: false })
-    } else {
-      this.setState({ isOpen: true })
-    }
-  }
-
+class Diff extends React.Component {
   render() {
-    const { props } = this
-    const { isOpen } = this.state
-    const diffs = isOpen ? props.diff.map(d => <DiffDetailView {...d} />) : null
+    const split = this.props.split
+    const spanStyle = {
+      fontFamily: 'monospace',
+      fontSize: 12,
+    }
     return (
-      <div>
-        <h1>{props.id}</h1>
-        <button onClick={this.toggleOpen}>{isOpen ? 'Close' : 'Open'}</button>
-        { diffs }
+      <div style={{width: '100%', marginTop: 35}}>
+        <span style={spanStyle}>
+          Document id: <a name={this.props.id}>{this.props.id}</a>
+        </span>
+        <ReactDiffViewer
+          hideLineNumbers={!split}
+          oldValue={this.props.lhs}
+          newValue={this.props.rhs}
+          splitView={split}
+        />
       </div>
     )
   }
@@ -68,32 +63,50 @@ const App = () => {
   const panels = []
   Object.keys(data).forEach((type) => {
     tabList.push(<Tab key={type}>{type}</Tab>)
+    const added = data[type].added.map((o) => {
+      return {
+        id: o._id,
+        lhs: "",
+        rhs: JSON.stringify(o, 0, 2)
+      }
+    })
+
+    const removed = data[type].removed.map((o) => {
+      return {
+        id: o._id,
+        rhs: "",
+        lhs: JSON.stringify(o, 0, 2)
+      }
+    })
+
+    const changed = data[type].changed.map((diff) => {
+      return {
+        id: diff.lhs._id,
+        lhs:  JSON.stringify(diff.lhs, 0, 2),
+        rhs: JSON.stringify(diff.rhs, 0, 2),
+      }
+    })
+
     panels.push(
       <TabPanel key={`panels_${type}`}>
         <Tabs>
           <TabList>
-              <Tab>New ({data[type].added.length})</Tab>
-              <Tab>Removed ({data[type].removed.length})</Tab>
-              <Tab>Changed ({data[type].changed.length})</Tab>
+              <Tab>New ({added.length})</Tab>
+              <Tab>Removed ({removed.length})</Tab>
+              <Tab>Changed ({changed.length})</Tab>
           </TabList>
 
+        <div style={{height: '100%', overflowY: 'scroll'}}>
           <TabPanel>
-            <ul>
-              {data[type].added.map(id => (<li key={id}>{id}</li>))}
-            </ul>
+            <DiffCollection diffs={added} split={false} />
           </TabPanel>
           <TabPanel>
-            <ul>
-              {data[type].removed.map(id => (<li key={id}>{id}</li>))}
-            </ul>
+            <DiffCollection diffs={removed} split={false} />
           </TabPanel>
           <TabPanel>
-            {data[type].changed.map((changed) => {
-              return (
-                <DiffView id={changed.id} diff={changed.diff} />
-              )
-            })}
+            <DiffCollection diffs={changed} split={true} />
           </TabPanel>
+        </div>
         </Tabs>
       </TabPanel>
     )
@@ -105,7 +118,7 @@ const App = () => {
         <TabList>
           {tabList}
         </TabList>
-        {panels}
+          {panels}
       </Tabs>
     </div>
   )

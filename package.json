@@ -18,6 +18,7 @@
     "parcel-bundler": "^1.12.3",
     "react": "^16.8.6",
     "react-collapsible": "^2.6.0",
+    "react-diff-viewer": "^1.1.0",
     "react-dom": "^16.8.6",
     "react-gh-like-diff": "^1.0.6",
     "react-tabs": "^3.0.0"
