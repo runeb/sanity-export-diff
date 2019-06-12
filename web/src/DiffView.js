@@ -81,8 +81,8 @@ const DiffView = () => {
   const tabList = []
   const panels = []
   const { objects, flags } = data
+
   Object.keys(objects).forEach((type) => {
-    tabList.push(<Tab key={type}>{type}</Tab>)
     const added = objects[type].added.map((o) => {
       return {
         id: o._id,
@@ -133,6 +133,8 @@ const DiffView = () => {
         </Tabs>
       </TabPanel>
     )
+
+    tabList.push(<Tab key={type}>{type} ({added.length + removed.length + changed.length})</Tab>)
   })
 
   return (
