@@ -15,6 +15,8 @@ const cli = meow(`
   Usage
     $ sanity-export-diff <dataset path A> <dataset path B>
   Options
+	  --studio-url-a URL to Content Studio for dataset A
+	  --studio-url-B URL to Content Studio for dataset A
     --help Show this help
   Examples
     # Compare dataset 'production' with dataset 'staging' in project abcdef1
@@ -27,7 +29,7 @@ const cli = meow(`
   }
 )
 
-const { input, showHelp } = cli
+const { input, showHelp, flags } = cli
 
 if (input.length !== 2) {
   showHelp()
@@ -74,22 +76,13 @@ const clone = (val) => {
   return val
 }
 
-Array.prototype.groupBy = function(prop) {
-  return this.reduce(function(groups, item) {
-    const val = item[prop]
-    groups[val] = groups[val] || []
-    groups[val].push(item)
-    return groups
-  }, {})
-}
-
 Object.filter = (obj, predicate) =>
   Object.keys(obj)
     .filter(key => predicate(obj[key]))
     .reduce((res, key) => (res[key] = obj[key], res), {})
 
 
-async function compare(a, b) {
+async function compare(a, b, flags = {}) {
   const spinner = ora('Comparing datasets').start()
 
   const aO = await processLineByLine(a)
@@ -176,7 +169,10 @@ async function compare(a, b) {
       }
   })
 
-  fs.writeFileSync('web/data.json', JSON.stringify(objects))
+  fs.writeFileSync('web/src/data.json', JSON.stringify({
+    flags,
+    objects
+  }))
   spinner.succeed()
 }
 
@@ -191,10 +187,10 @@ function isDir(path) {
   return fs.lstatSync(path).isDirectory()
 }
 
-async function run(paths) {
+async function run(paths, flags = {}) {
   const dataA = isDir(paths[0]) ? dataFilePath(paths[0]) : await doDecompress(paths[0])
   const dataB = isDir(paths[1]) ? dataFilePath(paths[1]) : await doDecompress(paths[1])
-  compare(dataA, dataB)
+  compare(dataA, dataB, flags)
 }
 
-run(cli.input)
+run(cli.input, flags)

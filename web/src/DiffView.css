@@ -1,0 +1,18 @@
+.Diff {
+  width: 100%;
+  margin-top: 40px;
+}
+
+#EditorLinksContainer {
+  display: flex;
+}
+
+.EditorLink {
+  width: 50%;
+}
+
+.EditorLink p {
+  margin-left: auto;
+  margin-right: auto;
+  width: 10em;
+}

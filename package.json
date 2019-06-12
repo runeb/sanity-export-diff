@@ -12,6 +12,7 @@
   "dependencies": {
     "decompress": "^4.2.0",
     "deep-diff": "^1.0.2",
+    "http-server": "^0.11.1",
     "md5-file": "^4.0.0",
     "meow": "^5.0.0",
     "ora": "^3.4.0",
@@ -22,5 +23,8 @@
     "react-dom": "^16.8.6",
     "react-gh-like-diff": "^1.0.6",
     "react-tabs": "^3.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.4.5"
   }
 }
