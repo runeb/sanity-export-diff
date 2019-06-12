@@ -6,6 +6,12 @@ const deepDiff = require('deep-diff')
 const fs = require('fs')
 const path = require('path')
 const md5File = require('md5-file')
+const child_process = require('child_process')
+const tempy = require('tempy')
+const mv = require('mv')
+const resolveFrom = require('resolve-from')
+const copyDir = require('copy-dir')
+const chalk = require('chalk')
 
 const cli = meow(`
   About
@@ -13,14 +19,16 @@ const cli = meow(`
     This tool will create files and folders in current directory.
 
   Usage
-    $ sanity-export-diff <dataset path A> <dataset path B>
+    $ sanity-export-diff <dataset path A> <dataset path B> <path>
   Options
 	  --studio-url-a URL to Content Studio for dataset A
 	  --studio-url-B URL to Content Studio for dataset A
     --help Show this help
   Examples
     # Compare dataset 'production' with dataset 'staging' in project abcdef1
-    $ sanity-export-diff ../prod.tar.gz ../staging.tar.gz
+    # creating a webapp for visualizing the differences in web-files/
+    #
+    $ sanity-export-diff ../prod.tar.gz ../staging.tar.gz web-files
 `,
   {
     boolean: [],
@@ -31,12 +39,12 @@ const cli = meow(`
 
 const { input, showHelp, flags } = cli
 
-if (input.length !== 2) {
+if (input.length !== 3) {
   showHelp()
   process.exit(1)
 }
 
-cli.input.forEach((input) => {
+cli.input.slice(0, 1).forEach((input) => {
   if (!fs.existsSync(input)) {
     console.log('No such file or directory: ' + input)
     process.exit(1)
@@ -169,11 +177,14 @@ async function compare(a, b, flags = {}) {
       }
   })
 
-  fs.writeFileSync('web/src/data.json', JSON.stringify({
+  const file = tempy.file()
+  fs.writeFileSync(file, JSON.stringify({
     flags,
     objects
   }))
+
   spinner.succeed()
+  return file
 }
 
 function dataFilePath(dir) {
@@ -187,10 +198,103 @@ function isDir(path) {
   return fs.lstatSync(path).isDirectory()
 }
 
+function createApp(path) {
+  return new Promise((resolve, reject) => {
+    child_process.exec(`npx create-react-app ${path}`, (err, stdout, stderr) => {
+      if (err) {
+        reject(err)
+        console.log(stdout, stderr)
+      } else {
+        resolve(path)
+      }
+    })
+  })
+}
+
+function exec(cmd) {
+  return new Promise((resolve, reject) => {
+    child_process.exec(cmd, (err, stdout, stderr) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+// Moves a file
+function move(from, to) {
+  return new Promise((resolve, reject) => {
+    mv(from, to, (err) => {
+      if (err) {
+        reject(err)
+        console.error(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+function copy(from, to) {
+  return new Promise((resolve, reject) => {
+    copyDir(from, to, {
+      mode: true,    // keep file mode
+    }, function(err) {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
 async function run(paths, flags = {}) {
+  const outPath = paths[2]
+  if (fs.existsSync(outPath)) {
+    console.log(`The path ${outPath} exists!`)
+    process.exit(1)
+  }
+
+  const tmpDir = tempy.directory()
   const dataA = isDir(paths[0]) ? dataFilePath(paths[0]) : await doDecompress(paths[0])
   const dataB = isDir(paths[1]) ? dataFilePath(paths[1]) : await doDecompress(paths[1])
-  compare(dataA, dataB, flags)
+
+  let spinner = new ora()
+  await compare(dataA, dataB, flags)
+    .then(dataFile => {
+      spinner.text = 'Building website'
+      spinner.start()
+
+      return copy(`${__dirname}/../template`, tmpDir)
+        .then(() => move(dataFile, `${tmpDir}/src/data.json`))
+    })
+    .then(() => {
+      return exec(`cd ${tmpDir} && npm i`)
+    })
+    .then(() => {
+      return exec(`cd ${tmpDir} && npm run build`)
+    })
+    .then(() => {
+      return move(`${tmpDir}/build`, outPath)
+    })
+    .then(() => spinner.succeed())
+    .then(() => {
+      console.log(`
+      All done!
+      View the generated website at any time with the command
+
+      ${chalk.green.bold(`npx serve -s ${outPath}`)}
+      
+      Or any other tool that can serve static html files
+      `)
+    })
+    .catch((err) => {
+      spinner.fail(err.msg)
+      console.log(err)
+    })
 }
 
 run(cli.input, flags)
