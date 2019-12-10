@@ -22,7 +22,7 @@ const cli = meow(`
     $ sanity-export-diff <dataset path A> <dataset path B> <path>
   Options
 	  --studio-url-a URL to Content Studio for dataset A
-	  --studio-url-B URL to Content Studio for dataset A
+	  --studio-url-b URL to Content Studio for dataset B
     --help Show this help
   Examples
     # Compare dataset 'production' with dataset 'staging' in project abcdef1
