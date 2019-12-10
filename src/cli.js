@@ -21,9 +21,10 @@ const cli = meow(`
   Usage
     $ sanity-export-diff <dataset path A> <dataset path B> <path>
   Options
-    --studio-url-a URL to Content Studio for dataset A
-    --studio-url-b URL to Content Studio for dataset B
-    --help Show this help
+    --studio-url-a  URL to Content Studio for dataset A
+    --studio-url-b  URL to Content Studio for dataset B
+    --skip-drafts   Don't include drafts in the diff
+    --help          Show this help
   Examples
     # Compare dataset 'production' with dataset 'staging' in project abcdef1
     # creating a webapp for visualizing the differences in web-files/
@@ -31,6 +32,12 @@ const cli = meow(`
     $ sanity-export-diff ../prod.tar.gz ../staging.tar.gz web-files
 `,
   {
+    flags: {
+      skipDrafts: {
+        type: 'boolean',
+        default: false
+      }
+    },
     boolean: [],
     alias: {
     }
@@ -93,8 +100,13 @@ Object.filter = (obj, predicate) =>
 async function compare(a, b, flags = {}) {
   const spinner = ora('Comparing datasets').start()
 
-  const aO = await processLineByLine(a)
-  const bO = await processLineByLine(b)
+  let aO = await processLineByLine(a)
+  let bO = await processLineByLine(b)
+
+  if (flags.skipDrafts) {
+    aO = aO.filter(obj => !obj._id.includes('drafts.'))
+    bO = bO.filter(obj => !obj._id.includes('drafts.'))
+  }
 
   const objects = {}
   const createIfMissing = type => {
